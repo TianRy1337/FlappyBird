@@ -4,23 +4,57 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public class Tapcontroller : MonoBehaviour
 {
-  public float tapForce = 10 ;
-  public float tiltSmooth = 5;
-  public Vector3 startPos;
-  Rigidbody2D rigidbody;
-  Quaternion downRotation;
-  Quaternion forwardRotation;
+    public delegate void PlayerDelegate();
+    public static event PlayerDelegate OnPlayerDied;
+    public static event PlayerDelegate OnPlayerScored;
+
+    public float tapForce = 10 ;
+    public float tiltSmooth = 5;
+    public Vector3 startPos;
+    Rigidbody2D newrigidbody;
+    Quaternion downRotation;
+    Quaternion forwardRotation;
+
+    GameManager game;
   
     public void Start() {
-        rigidbody = GetComponent<Rigidbody2D>();
+        newrigidbody = GetComponent<Rigidbody2D>();
         downRotation = Quaternion.Euler(0,0,-90);
         forwardRotation = Quaternion.Euler(0,0,35);
+        game = GameManager.Instance;
+        newrigidbody.simulated=false;
     }
+
+    
+    void OnEnable()
+    {
+        GameManager.OnGameStarted += OnGameStarted;
+        GameManager.OnGameOverConfirmed += OnGameOverConfirmed;
+    }
+
+    void OnDisable()
+    {
+        GameManager.OnGameStarted -= OnGameStarted;
+        GameManager.OnGameOverConfirmed -= OnGameOverConfirmed;
+    }
+
+    void OnGameStarted(){
+        newrigidbody.velocity = Vector3.zero;
+        newrigidbody.simulated = true;
+    }
+
+
+    void OnGameOverConfirmed(){
+        transform.localPosition = startPos;
+        transform.rotation = Quaternion.identity;
+    }   
+
     public void FixedUpdate(){
+        if(game.GameOver)return;
         if(Input.GetMouseButtonDown(0)){
             transform.rotation = forwardRotation;
-            rigidbody.velocity = Vector3.zero;
-            rigidbody.AddForce(Vector2.up * tapForce , ForceMode2D.Force);
+            newrigidbody.velocity = Vector3.zero;
+            newrigidbody.AddForce(Vector2.up * tapForce , ForceMode2D.Force);
 
         }
         transform.rotation = Quaternion.Lerp(transform.rotation, downRotation, tiltSmooth * Time.deltaTime);
@@ -29,9 +63,11 @@ public class Tapcontroller : MonoBehaviour
     public void OnTriggerEnter2D(Collider2D col) {
         if (col.gameObject.tag == "ScoreZone"){
             //計分
+            OnPlayerScored();// event sent to GameManager;
         }
         if(col.gameObject.tag =="DeadZone"){
-            rigidbody.simulated=false;//死亡
+            newrigidbody.simulated=false;//死亡
+            OnPlayerDied();
             
         }
     }

@@ -22,11 +22,52 @@ public class GameManager : MonoBehaviour
     }
 
     int score= 0;
-    bool gameOver = false;
+    bool gameOver = true;
     public bool GameOver {get{return gameOver;}}
     void Awake(){
-        Instance = this;
+        if(Instance != null)
+        {
+            Destroy(gameObject);
+        }
+        else{
+            Instance = this ;
+            DontDestroyOnLoad(gameObject);
+        }
     }
+
+    void OnEnable() {
+        CountdwonText.OnCountdownFinished += OnCountdownFinished;
+        Tapcontroller.OnPlayerDied += OnPlayerDied;
+        Tapcontroller.OnPlayerScored += OnPlayerScored;
+    }
+
+    void OnDisable() {
+        CountdwonText.OnCountdownFinished -= OnCountdownFinished;
+        Tapcontroller.OnPlayerDied -= OnPlayerDied;
+        Tapcontroller.OnPlayerScored -= OnPlayerScored;
+    }
+
+    void OnCountdownFinished(){
+        SetPageState(PageState.None);
+        OnGameStarted();//event snet to tapcontroller
+        score = 0;
+        gameOver= false;
+    }
+
+    void OnPlayerDied(){
+        gameOver = true;
+        int savedScored = PlayerPrefs.GetInt("HighScore");
+        if (score > savedScored) {
+            PlayerPrefs.SetInt("HighScore",score);
+        }
+        SetPageState(PageState.GameOver);
+    }
+
+    void OnPlayerScored(){
+        score++;
+        scoreText.text = score.ToString();
+    }
+
 
     void SetPageState(PageState state){
         switch(state){
@@ -54,7 +95,7 @@ public class GameManager : MonoBehaviour
     }
     public void ConfirmGameOver(){
         //重玩被按下的時候
-        OnGameOverConfirmed();//event
+        OnGameOverConfirmed();//event snet to tapcontroller
         scoreText.text = "0";
         SetPageState(PageState.Start);
     }
