@@ -454,7 +454,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tapForce: 230
   tiltSmooth: 3
-  startPos: {x: 0, y: 0, z: -0.27}
+  startPos: {x: 0, y: 0, z: 0}
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
