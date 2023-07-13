@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class Parallaxer : MonoBehaviour
 {
+
     class PoolObject
     {
         public Transform transform;
@@ -16,10 +17,9 @@ public class Parallaxer : MonoBehaviour
     [System.Serializable]
     public struct YSpawnRange
     {
-        public float min;
-        public float max;
+        public float minY;
+        public float maxY;
     }
-
 
     public GameObject Prefab;
     public int poolSize;
@@ -28,7 +28,7 @@ public class Parallaxer : MonoBehaviour
 
     public YSpawnRange ySpawnRange;
     public Vector3 defaultSpawnPos;
-    public bool spawnImmediate;//paricle prewarm
+    public bool spawnImmediate;
     public Vector3 immediateSpawnPos;
     public Vector2 targetAspectRatio;
 
@@ -37,11 +37,11 @@ public class Parallaxer : MonoBehaviour
     float targetAspect;
     GameManager game;
 
-
     void Awake()
     {
         Configure();
     }
+
     void Start()
     {
         game = GameManager.Instance;
@@ -50,7 +50,6 @@ public class Parallaxer : MonoBehaviour
     void OnEnable()
     {
         GameManager.OnGameOverConfirmed += OnGameOverConfirmed;
-
     }
 
     void OnDisable()
@@ -67,10 +66,10 @@ public class Parallaxer : MonoBehaviour
         }
         Configure();
     }
-    void FixedUpdate()
+
+    void Update()
     {
-        if (game.GameOver)
-            return;
+        if (game.GameOver) return;
 
         Shift();
         spawnTimer += Time.deltaTime;
@@ -83,16 +82,32 @@ public class Parallaxer : MonoBehaviour
 
     void Configure()
     {
+        //spawning pool objects
         targetAspect = targetAspectRatio.x / targetAspectRatio.y;
-        poolObjects = new PoolObject[poolSize];
-        for (int i = 0; i < poolObjects.Length; i++)
+
+        // Check if this is the first time configuring the pool
+        if (poolObjects == null)
         {
-            GameObject go = Instantiate(Prefab) as GameObject;
-            Transform t = go.transform;
-            t.SetParent(transform);
-            t.position = Vector3.one * 1000;
-            poolObjects[i] = new PoolObject(t);
+            poolObjects = new PoolObject[poolSize];
+            for (int i = 0; i < poolObjects.Length; i++)
+            {
+                GameObject go = Instantiate(Prefab) as GameObject;
+                Transform t = go.transform;
+                t.SetParent(transform);
+                t.position = Vector3.one * 1000;
+                poolObjects[i] = new PoolObject(t);
+            }
         }
+        else
+        {
+            // If the pool is being reconfigured, just reset all objects
+            for (int i = 0; i < poolObjects.Length; i++)
+            {
+                poolObjects[i].Dispose();
+                poolObjects[i].transform.position = Vector3.one * 1000;
+            }
+        }
+
         if (spawnImmediate)
         {
             SpawnImmediate();
@@ -101,39 +116,42 @@ public class Parallaxer : MonoBehaviour
 
     void Spawn()
     {
+        //moving pool objects into place
         Transform t = GetPoolObject();
-        if (t == null)  //if true, this indicates that poolSize is too small
-            return;
+        if (t == null) return;
         Vector3 pos = Vector3.zero;
+        pos.y = Random.Range(ySpawnRange.minY, ySpawnRange.maxY);
         pos.x = (defaultSpawnPos.x * Camera.main.aspect) / targetAspect;
-        pos.y = Random.Range(ySpawnRange.min, ySpawnRange.max);
         t.position = pos;
     }
 
     void SpawnImmediate()
     {
         Transform t = GetPoolObject();
-        if (t == null)  //if true, this indicates that poolSize is too small
-            return;
+        if (t == null) return;
         Vector3 pos = Vector3.zero;
+        pos.y = Random.Range(ySpawnRange.minY, ySpawnRange.maxY);
         pos.x = (immediateSpawnPos.x * Camera.main.aspect) / targetAspect;
-        pos.y = Random.Range(ySpawnRange.min, ySpawnRange.max);
         t.position = pos;
         Spawn();
-
     }
 
-    public void Shift()
+    void Shift()
     {
+        //loop through pool objects 
+        //moving them
+        //discarding them as they go off screen
         for (int i = 0; i < poolObjects.Length; i++)
         {
-            poolObjects[i].transform.localPosition += -Vector3.right * shiftSpeed * Time.deltaTime;
+            poolObjects[i].transform.position += Vector3.left * shiftSpeed * Time.deltaTime;
             CheckDisposeObject(poolObjects[i]);
         }
     }
+
     void CheckDisposeObject(PoolObject poolObject)
     {
-        if (poolObject.transform.position.x < (-defaultSpawnPos.x / Camera.main.aspect / targetAspect))
+        //place objects off screen
+        if (poolObject.transform.position.x < (-defaultSpawnPos.x * Camera.main.aspect) / targetAspect)
         {
             poolObject.Dispose();
             poolObject.transform.position = Vector3.one * 1000;
@@ -142,6 +160,7 @@ public class Parallaxer : MonoBehaviour
 
     Transform GetPoolObject()
     {
+        //retrieving first available pool object
         for (int i = 0; i < poolObjects.Length; i++)
         {
             if (!poolObjects[i].inUse)
@@ -152,5 +171,4 @@ public class Parallaxer : MonoBehaviour
         }
         return null;
     }
-
 }
